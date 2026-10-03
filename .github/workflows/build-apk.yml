@@ -1,22 +1,27 @@
 name: Build customer APK
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - 'customer/**'
-      - '.github/workflows/build-customer.yml'
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: customer
-
     steps:
       - uses: actions/checkout@v4
+
+      - name: Locate Flutter project
+        id: find
+        run: |
+          P=$(find . -name pubspec.yaml -not -path '*/.*' -not -path '*/node_modules/*' | awk '{print length, $0}' | sort -n | head -n1 | cut -d' ' -f2-)
+          if [ -z "$P" ]; then
+            echo "pubspec.yaml not found. Repo files:"
+            git ls-files | head -50
+            exit 1
+          fi
+          echo "dir=$(dirname "$P")" >> "$GITHUB_OUTPUT"
+          echo "Found project at: $(dirname "$P")"
 
       - uses: actions/setup-java@v4
         with:
@@ -26,17 +31,18 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.38.x'
           cache: true
 
-      - name: Get packages
+      - name: Get dependencies
         run: flutter pub get
+        working-directory: ${{ steps.find.outputs.dir }}
 
-      - name: Build release APK (split per ABI)
-        run: flutter build apk --release --split-per-abi
+      - name: Build APK
+        run: flutter build apk --release
+        working-directory: ${{ steps.find.outputs.dir }}
 
-      - name: Upload APKs
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: customer-apk
-          path: customer/build/app/outputs/flutter-apk/*.apk
-          retention-days: 7
+          path: ${{ steps.find.outputs.dir }}/build/app/outputs/flutter-apk/app-release.apk
