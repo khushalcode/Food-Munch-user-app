@@ -1,20 +1,19 @@
-name: Build APKs
+name: Build customer APK
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'customer/**'
+      - '.github/workflows/build-customer.yml'
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        app: [vendor, delivery]
     defaults:
       run:
-        working-directory: ${{ matrix.app }}
+        working-directory: customer
 
     steps:
       - uses: actions/checkout@v4
@@ -38,5 +37,6 @@ jobs:
       - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.app }}-apk
-          path: ${{ matrix.app }}/build/app/outputs/flutter-apk/*.apk
+          name: customer-apk
+          path: customer/build/app/outputs/flutter-apk/*.apk
+          retention-days: 7
